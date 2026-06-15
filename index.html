@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recherche INSEE - Zoho Billing</title>
-    <script src="https://static.zohocdn.com/crm/jsapi/2.0/ZSDK.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -72,8 +71,6 @@
     <script>
         let selectedCompany = null;
         let currentResults = [];
-        
-        ZOHO.embeddedApp.init();
 
         document.getElementById('searchInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') searchCompany();
@@ -162,21 +159,34 @@
             var siege = selectedCompany.siege || {};
             var siren = "" + selectedCompany.siren;
             var nom = selectedCompany.nom_complet || selectedCompany.nom_raison_sociale || "";
+            var tva = calculerTVA(siren);
 
-            // Paramètres spécifiques à Zoho Billing
+            // Construction des paramètres pour l'URL Zoho Billing
             var params = new URLSearchParams();
             
+            // Nom de l'entreprise
             if (nom) {
                 params.append("company_name", nom);
-                params.append("customer_name", nom); 
+                params.append("contact_name", nom); // Remplissage du Nom d'affichage
             }
+            
+            // Adresse de Facturation
             if (siege.adresse) params.append("billing_street", siege.adresse);
             if (siege.code_postal) params.append("billing_zip", siege.code_postal);
             if (siege.libelle_commune) params.append("billing_city", siege.libelle_commune);
             params.append("billing_country", "France"); 
-            if (siren) params.append("tax_reg_no", calculerTVA(siren)); 
 
-            // Redirection vers la page de création AlphaLink/OuiLink avec les données
+            // Adresse de Livraison (Identique)
+            if (siege.adresse) params.append("shipping_street", siege.adresse);
+            if (siege.code_postal) params.append("shipping_zip", siege.code_postal);
+            if (siege.libelle_commune) params.append("shipping_city", siege.libelle_commune);
+            params.append("shipping_country", "France");
+
+            // Champs Personnalisés : SIRET et Numéro de TVA
+            if (siege.siret) params.append("cf_siret", siege.siret);
+            if (tva) params.append("cf_numero_de_tva", tva);
+
+            // Lien direct de création AlphaLink avec paramètres
             var createUrl = "https://subscriptions.zoho.eu/app/20099589540#/contacts/new?" + params.toString();
             window.open(createUrl, "_top");
         }
