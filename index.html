@@ -176,9 +176,9 @@
             params.append("billing_country", "France"); 
             if (siren) params.append("tax_reg_no", calculerTVA(siren)); 
 
-            // Redirection vers la page de création avec les données
-            var createUrl = "/app#/customers/new?" + params.toString();
-            window.open(createUrl, "_parent");
+            // Redirection vers la page de création AlphaLink/OuiLink avec les données
+            var createUrl = "https://subscriptions.zoho.eu/app/20099589540#/contacts/new?" + params.toString();
+            window.open(createUrl, "_top");
         }
     </script>
 </body>
