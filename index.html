@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recherche INSEE - Zoho Billing</title>
+    <title>Recherche INSEE - Webhook</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -153,42 +153,61 @@
             document.getElementById('btnValidate').disabled = false;
         }
 
-        function validateSelection() {
+        async function validateSelection() {
             if (!selectedCompany) return;
+
+            var btn = document.getElementById('btnValidate');
+            btn.disabled = true;
+            btn.textContent = 'Envoi vers Zoho Flow...';
 
             var siege = selectedCompany.siege || {};
             var siren = "" + selectedCompany.siren;
             var nom = selectedCompany.nom_complet || selectedCompany.nom_raison_sociale || "";
             var tva = calculerTVA(siren);
 
-            // Construction des paramètres pour l'URL Zoho Billing
-            var params = new URLSearchParams();
-            
-            // Nom de l'entreprise
-            if (nom) {
-                params.append("company_name", nom);
-                params.append("contact_name", nom); // Remplissage du Nom d'affichage
+            // Création du paquet de données JSON
+            var payload = {
+                company_name: nom,
+                billing_street: siege.adresse || "",
+                billing_zip: siege.code_postal || "",
+                billing_city: siege.libelle_commune || "",
+                billing_country: "France",
+                siret: siege.siret || "",
+                tva: tva || ""
+            };
+
+            // URL du Webhook Zoho Flow
+            var webhookUrl = "https://flow.zoho.eu/20112947589/flow/webhook/incoming?zapikey=1001.6478c2c0d6f28341d85672c0fd81d963.2dfd92cdc06378d189f7388862824fbc&isdebug=false";
+
+            try {
+                // Envoi en mode 'no-cors' pour éviter le blocage de sécurité navigateur
+                await fetch(webhookUrl, {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'no-cors' 
+                });
+
+                btn.textContent = 'Données envoyées avec succès !';
+                btn.style.background = '#059669';
+
+                // Remise à zéro visuelle après 3 secondes
+                setTimeout(function() {
+                    btn.textContent = 'Créer ce client';
+                    btn.disabled = false;
+                    btn.style.background = '';
+                }, 3000);
+
+            } catch (error) {
+                console.error(error);
+                btn.textContent = 'Erreur réseau';
+                setTimeout(function() {
+                    btn.textContent = 'Créer ce client';
+                    btn.disabled = false;
+                }, 3000);
             }
-            
-            // Adresse de Facturation
-            if (siege.adresse) params.append("billing_street", siege.adresse);
-            if (siege.code_postal) params.append("billing_zip", siege.code_postal);
-            if (siege.libelle_commune) params.append("billing_city", siege.libelle_commune);
-            params.append("billing_country", "France"); 
-
-            // Adresse de Livraison (Identique)
-            if (siege.adresse) params.append("shipping_street", siege.adresse);
-            if (siege.code_postal) params.append("shipping_zip", siege.code_postal);
-            if (siege.libelle_commune) params.append("shipping_city", siege.libelle_commune);
-            params.append("shipping_country", "France");
-
-            // Champs Personnalisés : SIRET et Numéro de TVA
-            if (siege.siret) params.append("cf_siret", siege.siret);
-            if (tva) params.append("cf_numero_de_tva", tva);
-
-            // Lien direct de création AlphaLink avec paramètres
-            var createUrl = "https://subscriptions.zoho.eu/app/20099589540#/contacts/new?" + params.toString();
-            window.open(createUrl, "_top");
         }
     </script>
 </body>
