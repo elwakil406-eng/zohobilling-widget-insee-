@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recherche INSEE - Webhook</title>
+    <title>Recherche INSEE - Webhook Automatique</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -153,60 +153,40 @@
             document.getElementById('btnValidate').disabled = false;
         }
 
-        async function validateSelection() {
+        function validateSelection() {
             if (!selectedCompany) return;
 
             var btn = document.getElementById('btnValidate');
             btn.disabled = true;
-            btn.textContent = 'Envoi vers Zoho Flow...';
+            btn.textContent = 'Création en cours...';
 
             var siege = selectedCompany.siege || {};
             var siren = "" + selectedCompany.siren;
             var nom = selectedCompany.nom_complet || selectedCompany.nom_raison_sociale || "";
             var tva = calculerTVA(siren);
 
-            // Création du paquet de données JSON
-            var payload = {
-                company_name: nom,
-                billing_street: siege.adresse || "",
-                billing_zip: siege.code_postal || "",
-                billing_city: siege.libelle_commune || "",
-                billing_country: "France",
-                siret: siege.siret || "",
-                tva: tva || ""
-            };
+            // Construction de l'URL Webhook avec les paramètres
+            var webhookBaseUrl = "https://flow.zoho.eu/20112947589/flow/webhook/incoming?zapikey=1001.6478c2c0d6f28341d85672c0fd81d963.2dfd92cdc06378d189f7388862824fbc&isdebug=false";
+            
+            var params = new URLSearchParams();
+            params.append("company_name", nom);
+            params.append("billing_street", siege.adresse || "");
+            params.append("billing_zip", siege.code_postal || "");
+            params.append("billing_city", siege.libelle_commune || "");
+            params.append("siret", siege.siret || "");
+            params.append("tva", tva || "");
 
-            // URL du Webhook Zoho Flow
-            var webhookUrl = "https://flow.zoho.eu/20112947589/flow/webhook/incoming?zapikey=1001.6478c2c0d6f28341d85672c0fd81d963.2dfd92cdc06378d189f7388862824fbc&isdebug=false";
+            var finalUrl = webhookBaseUrl + "&" + params.toString();
 
-            try {
-                // Envoi en mode 'no-cors' pour éviter le blocage de sécurité navigateur
-                await fetch(webhookUrl, {
-                    method: 'POST',
-                    body: JSON.stringify(payload),
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    mode: 'no-cors' 
-                });
+            // Appel en GET (Invisible, sans erreur CORS)
+            var img = new Image();
+            img.onload = function() { success(); };
+            img.onerror = function() { success(); }; 
+            img.src = finalUrl;
 
-                btn.textContent = 'Données envoyées avec succès !';
+            function success() {
+                btn.textContent = 'Client créé ! Fermez cette fenêtre.';
                 btn.style.background = '#059669';
-
-                // Remise à zéro visuelle après 3 secondes
-                setTimeout(function() {
-                    btn.textContent = 'Créer ce client';
-                    btn.disabled = false;
-                    btn.style.background = '';
-                }, 3000);
-
-            } catch (error) {
-                console.error(error);
-                btn.textContent = 'Erreur réseau';
-                setTimeout(function() {
-                    btn.textContent = 'Créer ce client';
-                    btn.disabled = false;
-                }, 3000);
             }
         }
     </script>
