@@ -34,9 +34,12 @@
         .detail-item { display: flex; align-items: baseline; gap: 6px; font-size: 12.5px; }
         .detail-label { color: #9ca3af; font-weight: 500; }
         .detail-value { color: #374151; font-weight: 500; }
-        .action-bar { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; }
-        .action-bar.visible { display: flex; justify-content: flex-end; gap: 10px; }
-        .btn-validate { padding: 10px 24px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .action-bar { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb; flex-direction: column; gap: 15px; }
+        .action-bar.visible { display: flex; }
+        .contact-form { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; }
+        .contact-input { padding: 10px 14px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; outline: none; }
+        .contact-input:focus { border-color: #10b981; }
+        .btn-validate { align-self: flex-end; padding: 12px 24px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .btn-validate:hover { box-shadow: 0 4px 12px rgba(5, 150, 105, 0.35); }
         .btn-validate:disabled { opacity: 0.6; cursor: not-allowed; }
         .empty-state { text-align: center; padding: 40px 20px; color: #9ca3af; }
@@ -65,6 +68,11 @@
         <div id="resultsContainer"></div>
     </div>
     <div class="action-bar" id="actionBar">
+        <div class="contact-form">
+            <input type="text" id="contactFirstName" class="contact-input" placeholder="Prénom">
+            <input type="text" id="contactLastName" class="contact-input" placeholder="Nom">
+            <input type="email" id="contactEmail" class="contact-input" placeholder="Email (Obligatoire)*" required>
+        </div>
         <button class="btn-validate" id="btnValidate" onclick="validateSelection()" disabled>Créer ce client</button>
     </div>
 
@@ -74,6 +82,16 @@
 
         document.getElementById('searchInput').addEventListener('keydown', function(e) {
             if (e.key === 'Enter') searchCompany();
+        });
+
+        // Activation du bouton uniquement si l'email est rempli
+        document.getElementById('contactEmail').addEventListener('input', function(e) {
+            var btn = document.getElementById('btnValidate');
+            if(e.target.value.trim() !== "" && selectedCompany !== null) {
+                btn.disabled = false;
+            } else {
+                btn.disabled = true;
+            }
         });
 
         function calculerTVA(siren) {
@@ -97,6 +115,10 @@
 
             selectedCompany = null;
             document.getElementById('btnValidate').disabled = true;
+            document.getElementById('contactFirstName').value = '';
+            document.getElementById('contactLastName').value = '';
+            document.getElementById('contactEmail').value = '';
+            
             actionBar.classList.remove('visible');
             btn.disabled = true;
             btn.textContent = 'Recherche...';
@@ -150,11 +172,21 @@
             }
             document.getElementById('card-' + index).classList.add('selected');
             selectedCompany = currentResults[index];
-            document.getElementById('btnValidate').disabled = false;
+            
+            // On vérifie si l'email est déjà rempli pour activer le bouton
+            if(document.getElementById('contactEmail').value.trim() !== "") {
+                document.getElementById('btnValidate').disabled = false;
+            }
         }
 
         function validateSelection() {
             if (!selectedCompany) return;
+            
+            var email = document.getElementById('contactEmail').value.trim();
+            if(!email) {
+                alert("Veuillez saisir une adresse email.");
+                return;
+            }
 
             var btn = document.getElementById('btnValidate');
             btn.disabled = true;
@@ -164,8 +196,11 @@
             var siren = "" + selectedCompany.siren;
             var nom = selectedCompany.nom_complet || selectedCompany.nom_raison_sociale || "";
             var tva = calculerTVA(siren);
+            
+            var firstName = document.getElementById('contactFirstName').value.trim();
+            var lastName = document.getElementById('contactLastName').value.trim();
 
-            // Construction de l'URL Webhook avec les paramètres
+            // Construction de l'URL Webhook avec les NOUVEAUX paramètres
             var webhookBaseUrl = "https://flow.zoho.eu/20112947589/flow/webhook/incoming?zapikey=1001.6478c2c0d6f28341d85672c0fd81d963.2dfd92cdc06378d189f7388862824fbc&isdebug=false";
             
             var params = new URLSearchParams();
@@ -175,18 +210,25 @@
             params.append("billing_city", siege.libelle_commune || "");
             params.append("siret", siege.siret || "");
             params.append("tva", tva || "");
+            params.append("first_name", firstName);
+            params.append("last_name", lastName);
+            params.append("email", email);
 
             var finalUrl = webhookBaseUrl + "&" + params.toString();
 
-            // Appel en GET (Invisible, sans erreur CORS)
             var img = new Image();
             img.onload = function() { success(); };
             img.onerror = function() { success(); }; 
             img.src = finalUrl;
 
             function success() {
-                btn.textContent = 'Client créé ! Fermez cette fenêtre.';
+                btn.textContent = 'Client créé !';
                 btn.style.background = '#059669';
+                setTimeout(function() {
+                    btn.textContent = 'Créer ce client';
+                    btn.style.background = '';
+                    document.getElementById('contactEmail').value = '';
+                }, 3000);
             }
         }
     </script>
